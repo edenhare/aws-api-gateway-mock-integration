@@ -1,0 +1,119 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Deploy a regional API Gateway. Includes a mock integration and dev stage. No logging is configured.
+
+# Use the defaults
+Parameters:
+  ApiGatewayName:
+    Type: String
+    Default: "CfnMockApi"
+  StageName:
+    Type: String
+    Default: "dev"
+
+
+Resources:
+
+  ApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Sample API Gateway REST API with mock integration
+      DisableExecuteApiEndpoint: false
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Mode: merge
+      Name: !Ref ApiGatewayName
+
+
+  ApiGatewayDevDeployment:
+    DependsOn: GetMock
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref ApiGateway
+      StageName: !Ref StageName
+      StageDescription:
+        DataTraceEnabled: false
+        Description: Dev Stage Deployment
+        MethodSettings:
+          - ResourcePath: !Sub "/-1${StageName}"
+            CacheDataEncrypted: false
+            CacheTtlInSeconds: 60
+            CachingEnabled: false
+            DataTraceEnabled: false
+            HttpMethod: GET
+            MetricsEnabled: true
+        MetricsEnabled: true
+        TracingEnabled: false
+
+  MockResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt
+        - ApiGateway
+        - RootResourceId
+      PathPart: 'mock'
+      RestApiId: !Ref ApiGateway
+
+  GetMock:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseTemplates:
+              application/json: |
+                {
+                  "statusCode": 200,
+                  "body": "ok",
+                  "accountId" : "$context.identity.accountId",
+                  "httpMethod" : "$context.httpMethod",
+                  "stage" : "$context.stage",
+                  "sourceIp" : "$context.identity.sourceIp",
+                  "user" : "$context.identity.user",
+                  "userAgent" : "$context.identity.userAgent",
+                  "userArn" : "$context.identity.userArn",
+                  "requestId" : "$context.requestId"
+                }
+        RequestTemplates:
+          # Sample RequestTemplate is from https://gist.github.com/elerch/b6b8ea6cdc31f354c393536a7dce1665
+          application/json: |
+            {
+              "statusCode" : 200,
+              "context" : {
+                "accountId" : "$context.identity.accountId",
+                "apiId" : "$context.apiId",
+                "apiKey" : "$context.identity.apiKey",
+                "authorizerPrincipalId" : "$context.authorizer.principalId",
+                "caller" : "$context.identity.caller",
+                "cognitoAuthenticationProvider" : "$context.identity.cognitoAuthenticationProvider",
+                "cognitoAuthenticationType" : "$context.identity.cognitoAuthenticationType",
+                "cognitoIdentityId" : "$context.identity.cognitoIdentityId",
+                "cognitoIdentityPoolId" : "$context.identity.cognitoIdentityPoolId",
+                "httpMethod" : "$context.httpMethod",
+                "stage" : "$context.stage",
+                "sourceIp" : "$context.identity.sourceIp",
+                "user" : "$context.identity.user",
+                "userAgent" : "$context.identity.userAgent",
+                "userArn" : "$context.identity.userArn",
+                "requestId" : "$context.requestId",
+                "resourceId" : "$context.resourceId",
+                "resourcePath" : "$context.resourcePath"
+                }
+            }
+      MethodResponses:
+        - StatusCode: 200
+      ResourceId: !Ref MockResource
+      RestApiId: !Ref ApiGateway
+
+Outputs:
+  StageUrl:
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+    Description: URL for the stage
+  MockEndpointUrl:
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/mock"
+    Description: mock endpoint URL

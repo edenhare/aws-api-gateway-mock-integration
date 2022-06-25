@@ -1,0 +1,12 @@
+{
+    "statusCode": 200,
+    "body": "ok",
+    "accountId": "$context.accountId",
+    "httpMethod": "$context.httpMethod",
+    "stage": "$context.stage",
+    "sourceIp": "$context.identity.sourceIp",
+    "user": "$context.identity.user",
+    "userAgent": "$context.identity.userAgent",
+    "userArn": "$context.identity.userArn",
+    "requestId": "$context.requestId"
+}
